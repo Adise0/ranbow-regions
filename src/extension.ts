@@ -11,6 +11,8 @@ interface Tag {
   index: number;
 }
 
+const openedDocs = new Set();
+
 let decorationTypes: { [color: string]: vscode.TextEditorDecorationType } = {};
 
 export function activate(context: vscode.ExtensionContext) {
@@ -159,11 +161,33 @@ export function activate(context: vscode.ExtensionContext) {
     }
   });
 
+  // vscode.workspace.onDidOpenTextDocument((document) => {
+  //   if (document.fileName.includes(".git")) {
+  //     return;
+  //   }
+  //   vscode.commands.executeCommand("editor.foldAllMarkerRegions");
+  // });
   vscode.workspace.onDidOpenTextDocument((document) => {
-    if (document.fileName.includes(".git")) {
-      return;
+    // Add the document URI to the set without folding immediately
+    if (!document.fileName.includes(".git")) {
+      openedDocs.add(document.uri.toString());
     }
-    vscode.commands.executeCommand("editor.foldAllMarkerRegions");
+    console.log(document.fileName);
+  });
+  vscode.window.onDidChangeVisibleTextEditors((editors) => {
+    editors.forEach((editor) => {
+      const document = editor.document;
+      const docUri = document.uri.toString();
+
+      // Fold only if the document is newly opened and visible in the editor for the first time
+      if (openedDocs.has(docUri)) {
+        openedDocs.delete(docUri); // Remove from set so it doesn't fold again
+
+        if (document.lineCount >= 75) {
+          vscode.commands.executeCommand("editor.foldAllMarkerRegions");
+        }
+      }
+    });
   });
 
   if (vscode.window.activeTextEditor) {
